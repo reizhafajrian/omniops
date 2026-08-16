@@ -1,0 +1,18 @@
+[package]
+name = "domain"
+version = "0.1.0"
+edition = "2021"
+# The domain crate deliberately has NO infrastructure dependencies.
+# Only serde, chrono, uuid, and thiserror are permitted here.
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+chrono     = { workspace = true }
+uuid       = { workspace = true }
+thiserror  = { workspace = true }
+serde_yaml = { workspace = true }
+
+[dev-dependencies]
+# tokio is only needed for #[tokio::test] in unit tests — not a production dep.
+tokio = { workspace = true }

@@ -1,0 +1,27 @@
+[package]
+name = "infrastructure"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+domain     = { path = "../domain" }
+
+# Workspace shared deps
+serde      = { workspace = true }
+serde_yaml = { workspace = true }
+serde_json = { workspace = true }
+chrono     = { workspace = true }
+uuid       = { workspace = true }
+thiserror  = { workspace = true }
+anyhow     = { workspace = true }
+tokio      = { workspace = true }
+tracing    = { workspace = true }
+
+# Persistence
+sqlx = { workspace = true }
+
+# Git
+git2 = { workspace = true }
+
+# Compose validation
+

@@ -1,0 +1,95 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cargo check",
+      "type": "shell",
+      "command": "cargo check --manifest-path ${workspaceFolder}/backend/Cargo.toml",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "cargo build api",
+      "type": "shell",
+      "command": "cargo build --manifest-path ${workspaceFolder}/backend/Cargo.toml -p api",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "Start Backend (Rust Engine)",
+      "type": "shell",
+      "command": "cargo run --manifest-path ${workspaceFolder}/backend/Cargo.toml -p api",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "OMNIOPS_TOKEN": "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",
+          "DATABASE_URL": "sqlite:${workspaceFolder}/backend/omniops.db",
+          "STACKS_CONFIG_PATH": "${workspaceFolder}/backend/stacks.yml",
+          "BIND_ADDRESS": "0.0.0.0:9090",
+          "RUST_LOG": "info"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "rust",
+        "fileLocation": ["relative", "${workspaceFolder}/backend"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 6,
+          "message": 7
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*Compiling|^\\s*Finished",
+          "endsPattern": ".*HTTP server listening.*"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "backend"
+      }
+    },
+    {
+      "label": "Start Frontend (React UI)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*vite",
+          "endsPattern": ".*ready in.*"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "frontend"
+      }
+    },
+    {
+      "label": "🚀 Start Full Stack (Backend + UI)",
+      "dependsOn": [
+        "Start Backend (Rust Engine)",
+        "Start Frontend (React UI)"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 Full Stack (Backend + Frontend)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:9091",
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "🚀 Start Full Stack (Backend + UI)"
+    },
+    {
+      "name": "Debug Rust Backend (CodeLLDB - recommended)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/target/debug/omniops-engine",
+      "args": [],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "OMNIOPS_TOKEN": "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",
+        "DATABASE_URL": "sqlite:${workspaceFolder}/backend/omniops.db",
+        "STACKS_CONFIG_PATH": "${workspaceFolder}/backend/stacks.yml",
+        "BIND_ADDRESS": "0.0.0.0:9090",
+        "RUST_LOG": "info",
+        "PATH": "${env:PATH}:/usr/local/bin:/opt/homebrew/bin:/Users/reizhafajrian/Downloads/google-cloud-sdk/bin"
+      },
+      "preLaunchTask": "cargo build api"
+    },
+    {
+      "name": "Debug Rust Backend (C/C++ cppdbg)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/target/debug/omniops-engine",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/backend",
+      "environment": [
+        { "name": "OMNIOPS_TOKEN", "value": "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" },
+        { "name": "DATABASE_URL", "value": "sqlite:${workspaceFolder}/backend/omniops.db" },
+        { "name": "STACKS_CONFIG_PATH", "value": "${workspaceFolder}/backend/stacks.yml" },
+        { "name": "BIND_ADDRESS", "value": "0.0.0.0:9090" },
+        { "name": "RUST_LOG", "value": "info" },
+        { "name": "PATH", "value": "${env:PATH}:/usr/local/bin:/opt/homebrew/bin:/Users/reizhafajrian/Downloads/google-cloud-sdk/bin" }
+      ],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "cargo build api"
+    }
+  ]
+}

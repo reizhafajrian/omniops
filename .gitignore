@@ -1,0 +1,10 @@
+# Rust
+target/
+
+# Node/UI
+node_modules/
+dist/
+build/
+.env
+# Added by code-review-graph
+.code-review-graph/
