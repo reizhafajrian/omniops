@@ -1,0 +1,47 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/domain",
+    "crates/infrastructure",
+    "crates/api",
+]
+
+# Shared dependency versions pinned at the workspace level so every crate
+# stays consistent without repeating version strings.
+[workspace.dependencies]
+# Async runtime
+tokio          = { version = "1", features = ["full"] }
+
+# Serialization
+serde          = { version = "1", features = ["derive"] }
+serde_yaml     = "0.9"
+serde_json     = "1"
+
+# Error handling
+thiserror      = "1"
+anyhow         = "1"
+dotenvy        = "0.15"
+
+# Logging / tracing (structured JSON output)
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Database
+sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio-native-tls", "chrono", "uuid", "migrate"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# IDs
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# HTTP / WebSocket (used by api crate only, listed here for version pinning)
+axum               = { version = "0.7", features = ["ws"] }
+tower              = "0.4"
+tower-http         = { version = "0.5", features = ["cors", "trace"] }
+tokio-tungstenite  = "0.21"
+hyper              = "1"
+
+# Git (infrastructure crate)
+git2 = { version = "0.18", default-features = false, features = ["https"] }
+

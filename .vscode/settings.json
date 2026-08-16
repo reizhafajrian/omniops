@@ -1,0 +1,11 @@
+{
+  "rust-analyzer.linkedProjects": [
+    "./backend/Cargo.toml"
+  ],
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "files.associations": {
+    "*.yml": "yaml",
+    "stacks.yml": "yaml"
+  },
+  "editor.formatOnSave": true
+}
