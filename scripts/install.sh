@@ -34,23 +34,40 @@ if [[ -z "$TARGET" ]]; then
     exit 1
 fi
 
-# 2. Download latest binary (Placeholder for GitHub Releases)
+# 2. Download latest binary
 echo "[2/3] Downloading OmniOps binary for $TARGET..."
 
-# TODO: Replace with actual GitHub Release URL once published
-# LATEST_URL="https://github.com/reizhafajrian/omniops/releases/latest/download/omniops-$TARGET.tar.gz"
-# curl -sSL "$LATEST_URL" -o omniops.tar.gz
-# tar -xzf omniops.tar.gz
+LATEST_URL="https://github.com/reizhafajrian/omniops/releases/latest/download/omni-${TARGET}.tar.gz"
+TEMP_DIR=$(mktemp -d)
 
-echo "(Skipping download in development... assuming binary is available locally)"
-# We will use the locally built one for now in this script placeholder
+# Try downloading, if it fails gracefully fallback
+if ! curl -sSLf "$LATEST_URL" -o "$TEMP_DIR/omni.tar.gz"; then
+    echo "Error: Failed to download from GitHub Releases."
+    echo "Make sure the release is published at:"
+    echo "$LATEST_URL"
+    echo ""
+    echo "If you are developing locally, you can install from source using:"
+    echo "cargo install --path backend/crates/api"
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
+
+tar -xzf "$TEMP_DIR/omni.tar.gz" -C "$TEMP_DIR"
 
 # 3. Install
 echo "[3/3] Installing to /usr/local/bin..."
-# sudo mv omniops /usr/local/bin/
-# sudo chmod +x /usr/local/bin/omniops
+
+if [ -w "/usr/local/bin" ]; then
+    mv "$TEMP_DIR/omni" /usr/local/bin/omni
+else
+    echo "Requesting sudo privileges to move binary to /usr/local/bin..."
+    sudo mv "$TEMP_DIR/omni" /usr/local/bin/omni
+fi
+
+chmod +x /usr/local/bin/omni
+rm -rf "$TEMP_DIR"
 
 echo ""
 echo "Installation complete!"
-echo "Run 'omniops' to start the server."
+echo "Run 'omni' to start the server or 'omni --help' for commands."
 echo "=================================================="
