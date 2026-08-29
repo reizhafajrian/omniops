@@ -28,11 +28,12 @@
 ### 1. Install OmniOps
 
 ```bash
-# Via install script (macOS / Linux)
+# Option 1: Quick Install Script (macOS/Linux)
 curl -sSL https://raw.githubusercontent.com/reizhafajrian/omniops/main/scripts/install.sh | bash
 
-# Via Homebrew (macOS)
-brew tap reizhafajrian/omniops && brew install omni
+# Option 2: Via Homebrew (macOS)
+brew tap reizhafajrian/omniops https://github.com/reizhafajrian/omniops
+brew install omni
 
 # Verify
 omni --version
