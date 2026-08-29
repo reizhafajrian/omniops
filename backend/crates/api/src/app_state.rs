@@ -59,12 +59,11 @@ pub struct AppState {
     /// Docker inspector — used for querying topology and metrics.
     pub docker_inspector: Arc<dyn DockerInspectorPort>,
 
+    /// Direct SQLite connection pool (for auth/sessions).
+    pub db: sqlx::SqlitePool,
+
     /// Whether privileged-mode services are permitted.
     pub allow_privileged: bool,
-
-    /// The bearer token value (read from env at startup, held in memory only).
-    /// Stored as `Arc<str>` to avoid unnecessary clones across requests.
-    pub bearer_token: Arc<str>,
 }
 
 impl AppState {

@@ -19,6 +19,7 @@ use crate::{
         system::{get_docker_status, start_docker_daemon, list_machines, create_machine, start_machine, stop_machine, delete_machine, get_system_metrics, inspect_machine, inspect_container, start_container, stop_container, restart_container, remove_container, get_container_logs, get_container_stats, ws_machine_project_logs},
         webhooks::{handle_webhook_by_secret, handle_webhook_by_stack_id},
         settings::{get_settings, update_settings},
+        auth::login_handler,
     },
     middleware::auth::auth_middleware,
 };
@@ -34,6 +35,8 @@ pub fn build_router(state: AppState) -> Router {
         // ── Webhook triggers (Unauthenticated by Bearer token, authenticated by secret) ──
         .route("/api/webhooks/:secret", post(handle_webhook_by_secret))
         .route("/api/stacks/:id/webhook", post(handle_webhook_by_stack_id))
+        // ── Auth ─────────────────────────────────────────────────────────────
+        .route("/api/auth/login", post(login_handler))
         // ── Settings ─────────────────────────────────────────────────────────
         .route("/api/settings", get(get_settings).put(update_settings))
         // ── Stack REST endpoints ─────────────────────────────────────────────

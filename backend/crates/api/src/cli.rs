@@ -6,7 +6,7 @@ use tracing::{info, error, warn};
 #[command(name = "omniops", version, about = "Self-Hosted GitOps Engine for Podman & Docker")]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Option<Commands>,
+    pub command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -34,9 +34,23 @@ pub enum Commands {
     Stop,
     /// Shows the status of the background OmniOps server
     Status,
+    /// Manage users
+    Users {
+        #[command(subcommand)]
+        command: UsersCommands,
+    },
 }
 
-pub fn handle_cli() -> Option<Commands> {
+#[derive(Subcommand)]
+pub enum UsersCommands {
+    /// Create a new user
+    Create {
+        username: String,
+        password: Option<String>,
+    },
+}
+
+pub fn handle_cli() -> Commands {
     let cli = Cli::parse();
     cli.command
 }
@@ -278,6 +292,41 @@ pub fn run_status_command() {
     } else {
         println!("OmniOps Status: STOPPED (stale PID file)");
         let _ = std::fs::remove_file(&pid_path);
+    }
+}
+
+pub async fn run_users_command(command: UsersCommands) {
+    match command {
+        UsersCommands::Create { username, password } => {
+            let password = if let Some(p) = password {
+                p
+            } else {
+                println!("Enter password for new user '{}': ", username);
+                let mut p = String::new();
+                std::io::stdin().read_line(&mut p).unwrap();
+                p.trim().to_string()
+            };
+
+            let hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).expect("Failed to hash password");
+            
+            let database_url = std::env::var("DATABASE_URL")
+                .unwrap_or_else(|_| "sqlite:./omniops.db".into());
+                
+            let pool = sqlx::SqlitePool::connect(&database_url)
+                .await
+                .expect("Failed to connect to database");
+                
+            sqlx::query!(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                username,
+                hash
+            )
+            .execute(&pool)
+            .await
+            .expect("Failed to create user. Does the username already exist?");
+            
+            println!("User '{}' created successfully.", username);
+        }
     }
 }
 

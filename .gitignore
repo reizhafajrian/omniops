@@ -8,3 +8,8 @@ build/
 .env
 # Added by code-review-graph
 .code-review-graph/
+
+# Database
+*.db
+*.db-shm
+*.db-wal

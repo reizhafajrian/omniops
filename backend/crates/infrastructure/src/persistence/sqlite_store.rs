@@ -34,7 +34,7 @@ use domain::{
 /// Obtain an instance via [`SqliteStateStore::connect`] which runs migrations
 /// before returning.
 pub struct SqliteStateStore {
-    pool: SqlitePool,
+    pub pool: SqlitePool,
 }
 
 impl SqliteStateStore {

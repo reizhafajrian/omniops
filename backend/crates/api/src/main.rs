@@ -43,27 +43,31 @@ async fn main() -> anyhow::Result<()> {
     // ── 0. Parse CLI arguments ───────────────────────────────────────────────
     let command = cli::handle_cli();
     match command {
-        Some(cli::Commands::Install { engine }) => {
+        cli::Commands::Install { engine } => {
             cli::run_install_command(&engine);
             return Ok(());
         }
-        Some(cli::Commands::Uninstall { deep_clean, engine }) => {
+        cli::Commands::Uninstall { deep_clean, engine } => {
             cli::run_uninstall_command(deep_clean, &engine);
             return Ok(());
         }
-        Some(cli::Commands::Start) => {
+        cli::Commands::Start => {
             cli::run_start_command();
             return Ok(());
         }
-        Some(cli::Commands::Stop) => {
+        cli::Commands::Stop => {
             cli::run_stop_command();
             return Ok(());
         }
-        Some(cli::Commands::Status) => {
+        cli::Commands::Status => {
             cli::run_status_command();
             return Ok(());
         }
-        _ => {}
+        cli::Commands::Users { command } => {
+            cli::run_users_command(command).await;
+            return Ok(());
+        }
+        cli::Commands::Serve => {}
     }
 
     // Load .env file if present
@@ -79,11 +83,6 @@ async fn main() -> anyhow::Result<()> {
     info!("omniops starting up");
 
     // ── 2. Environment variables ───────────────────────────────────────────────
-    let bearer_token = std::env::var("OMNIOPS_TOKEN")
-        .context("OMNIOPS_TOKEN env var is required (set a long random secret)")?;
-    if bearer_token.is_empty() {
-        bail!("OMNIOPS_TOKEN must not be empty");
-    }
 
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:./omniops.db".into());
@@ -124,11 +123,11 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // ── 4. SQLite ──────────────────────────────────────────────────────────────
-    let store = Arc::new(
-        SqliteStateStore::connect(&database_url)
-            .await
-            .context("failed to connect to SQLite")?,
-    );
+    let store_impl = SqliteStateStore::connect(&database_url)
+        .await
+        .context("failed to connect to SQLite")?;
+    let db_pool = store_impl.pool.clone();
+    let store = Arc::new(store_impl);
 
     // ── Load persisted stack configs from SQLite ─────────────────────────────
     let mut initial_stacks = initial_stacks;
@@ -170,8 +169,8 @@ async fn main() -> anyhow::Result<()> {
         validator,
         reconciler,
         docker_inspector,
+        db: db_pool,
         allow_privileged,
-        bearer_token: Arc::from(bearer_token.as_str()),
     };
 
     // ── 7. Background reconcile loops ──────────────────────────────────────────

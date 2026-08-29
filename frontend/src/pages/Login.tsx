@@ -18,21 +18,23 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      // The user's password input acts as the Bearer token
-      const inputToken = password.trim();
-      const response = await fetch('/api/settings', {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${inputToken}`
-        }
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
       });
       
       if (response.ok) {
-        setStoredToken(inputToken);
+        const data = await response.json();
+        setStoredToken(data.token);
         localStorage.setItem('omniops_admin_logged_in', 'true');
         toast.success('Successfully logged in');
         onLoginSuccess();
       } else {
-        toast.error('Invalid username or password.');
+        const err = await response.json().catch(() => ({}));
+        toast.error(err.error || 'Invalid username or password.');
       }
     } catch (err) {
       toast.error('Connection to backend failed.');
@@ -66,7 +68,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <ShieldCheck size={16} className="text-indigo-400 shrink-0 mt-0.5" />
           <div>
             <span className="font-semibold block text-indigo-200">Secure Access</span>
-            <span>Use your configured Account Security password. If you haven't set one yet, use your <code className="bg-indigo-950/60 px-1 py-0.5 rounded text-indigo-300 font-mono">OMNIOPS_TOKEN</code>.</span>
+            <span>Use your configured Account password. If you haven't set one up, create a user via CLI: <code className="bg-indigo-950/60 px-1 py-0.5 rounded text-indigo-300 font-mono">omni users create admin &lt;password&gt;</code></span>
           </div>
         </div>
 

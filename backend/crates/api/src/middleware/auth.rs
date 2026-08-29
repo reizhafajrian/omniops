@@ -1,13 +1,11 @@
-//! Bearer-token authentication middleware.
+//! Bearer-token authentication middleware using sessions.
 //!
 //! # Design
 //!
 //! Every endpoint, including WebSocket upgrades, is protected.  There are
-//! **no** unauthenticated routes (v1 requirement).
+//! **no** unauthenticated routes except for webhooks and the login endpoint itself.
 //!
-//! The token is a single static secret stored in the `OMNIOPS_TOKEN` env var
-//! and loaded once at startup into `AppState::bearer_token`.  It is compared
-//! via constant-time equality to prevent timing attacks.
+//! The token is a UUID session token stored in the `sessions` table in SQLite.
 //!
 //! # Usage
 //!
@@ -38,12 +36,12 @@ use serde_json::json;
 use crate::app_state::AppState;
 
 /// Axum middleware function that validates the `Authorization: Bearer <token>`
-/// header on every incoming request.
+/// header against the `sessions` table on every incoming request.
 ///
 /// Returns `401 Unauthorized` with a JSON body on any failure:
 /// - Missing header
 /// - Malformed header (not `Bearer <token>`)
-/// - Token value doesn't match `OMNIOPS_TOKEN`
+/// - Session expired or not found
 pub async fn auth_middleware(
     State(state): State<AppState>,
     request: Request,
@@ -51,45 +49,55 @@ pub async fn auth_middleware(
 ) -> Response {
     let path = request.uri().path();
     
-    // Webhook endpoints authenticate via the secret in the URL or query params, not the global Bearer token.
+    // Webhook endpoints authenticate via the secret in the URL or query params.
     if path.starts_with("/api/webhooks/") || (path.starts_with("/api/stacks/") && path.ends_with("/webhook")) {
         return next.run(request).await;
     }
 
+    // Login endpoint does not require authentication
+    if path == "/api/auth/login" {
+        return next.run(request).await;
+    }
+
     // Static frontend files and non-API routes are not authenticated by this middleware.
-    // The React frontend handles its own login screen routing.
     if !path.starts_with("/api/") {
         return next.run(request).await;
     }
 
-    let valid_token = {
-        let settings = state.settings.read().await;
-        settings.admin_password.clone().unwrap_or_else(|| state.bearer_token.to_string())
-    };
-
-    match extract_bearer_token(&request) {
-        Some(token) if constant_time_eq(token, &valid_token) => {
-            // Token is valid — let the request proceed.
-            next.run(request).await
-        }
-        Some(_) => {
-            // Token present but wrong.
-            tracing::warn!(
-                method = %request.method(),
-                uri    = %request.uri(),
-                "rejected request: invalid bearer token"
-            );
-            unauthorized_response("invalid token")
-        }
+    let token = match extract_bearer_token(&request) {
+        Some(t) => t,
         None => {
-            // No Authorization header or wrong scheme.
             tracing::warn!(
                 method = %request.method(),
                 uri    = %request.uri(),
                 "rejected request: missing Authorization header"
             );
-            unauthorized_response("missing Authorization header")
+            return unauthorized_response("missing Authorization header");
         }
+    };
+
+    // Validate token against the database
+    let pool = state.db.clone();
+    let is_valid = match sqlx::query!(
+        "SELECT token FROM sessions WHERE token = ? AND expires_at > CURRENT_TIMESTAMP",
+        token
+    )
+    .fetch_optional(&pool)
+    .await
+    {
+        Ok(Some(_)) => true,
+        _ => false,
+    };
+
+    if is_valid {
+        next.run(request).await
+    } else {
+        tracing::warn!(
+            method = %request.method(),
+            uri    = %request.uri(),
+            "rejected request: invalid or expired session token"
+        );
+        unauthorized_response("invalid or expired session token")
     }
 }
 
@@ -115,21 +123,6 @@ fn extract_bearer_token(request: &Request) -> Option<&str> {
     }
 
     None
-}
-
-/// Constant-time string equality to mitigate timing-based side-channel attacks.
-/// `std::cmp::PartialEq` on `str` is NOT guaranteed to be constant-time.
-fn constant_time_eq(a: &str, b: &str) -> bool {
-    // Use an XOR-accumulate pattern so the compiler cannot short-circuit.
-    // For production deployments consider the `subtle` crate for hardware
-    // constant-time guarantees if the threat model requires it.
-    if a.len() != b.len() {
-        return false;
-    }
-    a.bytes()
-        .zip(b.bytes())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-        == 0
 }
 
 fn unauthorized_response(reason: &str) -> Response {
@@ -169,20 +162,5 @@ mod tests {
             .body(axum::body::Body::empty())
             .unwrap();
         assert_eq!(extract_bearer_token(&req), None);
-    }
-
-    #[test]
-    fn constant_time_eq_matching_tokens() {
-        assert!(constant_time_eq("correct-horse-battery-staple", "correct-horse-battery-staple"));
-    }
-
-    #[test]
-    fn constant_time_eq_different_tokens() {
-        assert!(!constant_time_eq("abc", "xyz"));
-    }
-
-    #[test]
-    fn constant_time_eq_different_lengths() {
-        assert!(!constant_time_eq("short", "much-longer-string"));
     }
 }
