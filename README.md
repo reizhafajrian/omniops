@@ -52,28 +52,17 @@ omni install --engine podman
 omni install --engine docker
 ```
 
-### 3. Configure
-
-Create a `.env` file in your working directory:
-
-```env
-PORT=9090
-GITOPS_TOKEN=your-secret-token-here
-DATABASE_URL=sqlite:./omniops.db
-RUST_LOG=info
-```
-
-### 4. Start the Server
+### 3. Create User & Start Engine
 
 ```bash
-# Background mode (SSH-safe, recommended for servers)
-omni start
+# Create an admin user
+omni users create admin <your-password>
 
-# Foreground mode (for development / debugging)
+# Start OmniOps
 omni serve
 ```
 
-Open **http://localhost:9090** in your browser. Log in with your `GITOPS_TOKEN`.
+Open **http://localhost:8080** in your browser. Log in with the username and password you just created.
 
 ---
 
@@ -168,21 +157,24 @@ Unknown → OutOfSync → Deploying → Synced
 
 ## 🔑 Authentication
 
-All API requests and the Web UI require a Bearer token:
+All API endpoints require authentication via a session token obtained from the login endpoint.
 
-```
-Authorization: Bearer <GITOPS_TOKEN>
+```http
+Authorization: Bearer <SESSION_UUID>
 ```
 
-Set `GITOPS_TOKEN` in your `.env` file. This is the password for your OmniOps instance.
+Authentication is now managed by the internal SQLite database. You can create users using the CLI:
+```bash
+omni users create admin <password>
+```
 
 ---
 
 ## 📡 API Quick Reference
 
 ```bash
-BASE=http://localhost:9090/api
-TOKEN=your-secret-token
+BASE=http://localhost:8080/api
+TOKEN=your-session-token
 
 # List all stacks
 curl -H "Authorization: Bearer $TOKEN" $BASE/stacks
@@ -203,11 +195,11 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 curl -X POST -H "Authorization: Bearer $TOKEN" $BASE/stacks/{id}/sync
 
 # WebSocket: Stream live container logs
-wscat -c "ws://localhost:9090/api/logs/{stack_id}?container={container_name}" \
+wscat -c "ws://localhost:8080/api/logs/{stack_id}?container={container_name}" \
   -H "Authorization: Bearer $TOKEN"
 
 # Webhook trigger (no auth header needed — secret is in the URL)
-curl -X POST http://localhost:9090/api/webhooks/{SECRET_TOKEN}
+curl -X POST http://localhost:8080/api/webhooks/{SECRET_TOKEN}
 ```
 
 ---
@@ -216,10 +208,9 @@ curl -X POST http://localhost:9090/api/webhooks/{SECRET_TOKEN}
 
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `9090` | HTTP server port |
+| `PORT` | `8080` | Server listening port |
 | `HOST` | `0.0.0.0` | Bind address |
-| `GITOPS_TOKEN` | *(required)* | API & UI authentication token |
-| `DATABASE_URL` | `sqlite:./omniops.db` | SQLite database path |
+| `DATABASE_URL` | `sqlite:./omniops.db` | Path to SQLite DB |
 | `RUST_LOG` | `info` | Log level: `error`, `warn`, `info`, `debug`, `trace` |
 
 ---
