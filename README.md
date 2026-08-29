@@ -1,7 +1,7 @@
 # 🚀 OmniOps — Self-Hosted GitOps Engine for Podman & Docker
 
 [![Release](https://img.shields.io/github/v/release/reizhafajrian/omniops?style=flat-square)](https://github.com/reizhafajrian/omniops/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-red?style=flat-square)](LICENSE)
 [![Built with Rust](https://img.shields.io/badge/Built%20with-Rust-orange?style=flat-square)](https://www.rust-lang.org/)
 
 **OmniOps** is a lightweight, self-hosted GitOps continuous deployment engine built in Rust. It monitors your Git repositories for new commits and automatically deploys your `docker-compose.yml` workloads via **Podman** (or Docker) — no Kubernetes required.
@@ -301,4 +301,13 @@ app/
 
 ## 📄 License
 
-MIT © [Reizha Fajrian](https://github.com/reizhafajrian)
+**Non-Commercial & Internal Business Use Only**
+
+This software is provided for personal, educational, and **internal business use**. You and your company may use this software internally to deploy and manage your own applications.
+
+However, you **may not** use this software to:
+- Sell the software or offer it as part of a commercial product.
+- Offer the software as a paid SaaS (Software-as-a-Service), managed service, or subscription to third parties.
+- Resell or distribute the software for direct profit.
+
+© 2024 [Reizha Fajrian](https://github.com/reizhafajrian). All rights reserved.
