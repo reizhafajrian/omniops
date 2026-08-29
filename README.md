@@ -1,172 +1,304 @@
-# 🚀 OmniOps — Self-Hosted OmniOps Engine for Podman & Docker
+# 🚀 OmniOps — Self-Hosted GitOps Engine for Podman & Docker
 
-A lightweight, self-hosted OmniOps reconciliation engine designed for Podman (and Docker) environments — conceptually similar to ArgoCD, but without the complexity of a Kubernetes control plane. It automatically deploys and manages applications defined by `docker-compose.yml` directly from your Git repositories.
+[![Release](https://img.shields.io/github/v/release/reizhafajrian/omniops?style=flat-square)](https://github.com/reizhafajrian/omniops/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![Built with Rust](https://img.shields.io/badge/Built%20with-Rust-orange?style=flat-square)](https://www.rust-lang.org/)
 
----
+**OmniOps** is a lightweight, self-hosted GitOps continuous deployment engine built in Rust. It monitors your Git repositories for new commits and automatically deploys your `docker-compose.yml` workloads via **Podman** (or Docker) — no Kubernetes required.
 
-## 🏗️ Architecture
-
-The system consists of two main components:
-
-1. **Headless Rust Backend Engine (`/backend`)**: A high-performance reconciliation daemon + Axum REST API and WebSocket API powered by SQLite persistence. It talks directly to `podman` and `podman-compose` to manage workloads.
-2. **React Frontend Control Plane (`/frontend`)**: A modern, real-time dashboard powered by React 18, Vite, TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, and an xterm.js live terminal for container logs.
+> **Docs:** [https://omniops.dev/docs](https://omniops.dev/docs)
 
 ---
 
 ## ✨ Key Features
 
-- **Automated OmniOps Reconciliation**: Polls your remote Git repositories (e.g., every 60 seconds) and automatically deploys your containers via `podman-compose` when a new commit is detected.
-- **Daemonless Podman Support**: Completely integrated with Podman. Parses `podman ps --format json` and uses labels (`io.podman.compose.project`, `io.podman.compose.service`) to map containers to your stacks.
-- **System Metrics & Topology**: Inspects your running containers to display CPU usage, memory consumption, exposed ports, volume mappings, and network attachments in real-time.
-- **Live Terminal Logs**: View live stdout and stderr streams of your deployments directly in the UI using WebSockets and xterm.js.
-- **Rollback Safety**: Automatically detects deployment failures (e.g., syntax error in your compose file) and allows you to rollback to the last known good commit with a single click.
-- **SQLite State Management**: Uses a robust embedded SQLite database to persist the deployment states, timestamps, and commit hashes for every stack you manage.
-- **Single-Command Install Script**: Comes with a customized `install.sh` to install dependencies (including Podman), setup a `systemd` service for the backend daemon, and expose the UI — all automatically.
+- **GitOps Reconciliation** — Automatically syncs containers to match the desired state in your Git repo.
+- **Podman-First** — Fully rootless container support via Podman. Docker is also supported.
+- **Single Binary** — The entire engine (API + embedded Web UI) ships as one compiled `omni` binary.
+- **Daemon Mode** — SSH-safe background process with `omni start` / `omni stop` / `omni status`.
+- **Real-Time Dashboard** — Live WebSocket log streaming, topology graphs, CPU/RAM metrics.
+- **Webhook Support** — Instant deploys on Git push via webhook, or periodic polling, or both.
+- **Private Registries** — Automatic authentication for GCR, GHCR, ECR, Docker Hub.
+- **Rollback Safety** — Preserves `last_known_good_commit` on failure for safe rollbacks.
 
 ---
 
-## 🧠 How It Works (End-to-End Engine Architecture)
+## 🚀 Quick Start
 
-OmniOps works on an **automated reconciliation loop** coupled with an **exhaustive state machine**. It monitors your Git repositories, compares the latest remote commit hash against the last applied hash in SQLite, validates the compose configuration, and applies changes automatically to the local Podman instance.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Git as Remote Git Repo
-    participant Loop as Background Reconcile Loop
-    participant Store as SQLite StateStore
-    participant Podman as Podman Daemon
-    participant UI as React Control Plane
-
-    Loop->>Store: 1. Load current stack state & last applied commit
-    Loop->>Git: 2. Fetch remote branch HEAD commit hash (cheap)
-    Git-->>Loop: Return latest commit hash (e.g. `e4f9b2a`)
-
-    alt Remote hash matches last_synced_commit
-        Loop->>Store: 3a. Status is `Synced` — No action needed
-    else Remote hash differs (OutOfSync Trigger)
-        Loop->>Store: 3b. Transition state to `Deploying`
-        Loop->>Git: 4. Sparse checkout commit to /tmp/omniops_checkouts/
-        Loop->>Podman: 5. Run `podman-compose up -d --remove-orphans`
-
-        alt Compose apply succeeds
-            Podman-->>Loop: Containers started successfully (exit code 0)
-            Loop->>Store: 6a. Transition state to `Synced`, update `last_known_good_commit`
-            Loop->>Store: 6b. Append successful `SyncEvent` to audit log
-        else Compose apply fails
-            Loop->>Store: 7a. Transition state to `Failed` (preserves `last_known_good_commit`)
-            Loop->>Store: 7b. Append failed `SyncEvent` with captured error traceback
-        end
-    end
-
-    UI->>Store: 8. TanStack Query polls GET /api/stacks every 3s
-    UI->>Podman: 9. WS /api/logs/:id streams live container stdout/stderr
-```
-
----
-
-## 🔄 Lifecycle & State Machine
-
-Every tracked stack follows a strict 5-state lifecycle defined in `DeploymentState`. There are **no implicit success fallthroughs** — every state transition is explicit and persisted to SQLite.
-
-```text
-       ┌──────────┐
-       │ Unknown  │  (Initial state at startup before first poll)
-       └────┬─────┘
-            │
-            ▼
-      ┌───────────┐
-  ┌──►│ OutOfSync │  (Remote commit != last_synced_commit)
-  │   └─────┬─────┘
-  │         │
-  │         ▼
-  │   ┌───────────┐
-  │   │ Deploying │  (Per-stack Mutex held, checkout & compose apply running)
-  │   └──┬─────┬──┘
-  │      │     │
-  │      │     └──────────────┐
-  │      ▼                    ▼
-  │ ┌──────────┐        ┌──────────┐
-  │ │  Synced  │        │  Failed  │  (Error logged, last_known_good_commit PRESERVED)
-  │ └──────────┘        └──────────┘
-  │      │                    │
-  └──────┴────────────────────┘  (Next poll or manual rollback)
-```
-
----
-
-## 🔑 Security Token (`OMNIOPS_TOKEN`)
-
-The **Token** is your engine's security password (`OMNIOPS_TOKEN`). It must be passed as a Bearer token to authorize all REST API routes and WebSocket endpoints.
-
-- **Environment Variable**: `VITE_OMNIOPS_TOKEN` (Frontend) and `OMNIOPS_TOKEN` (Backend).
-- **Why it is needed**: It prevents unauthorized access to your container metrics, configuration, and repository details.
-- **UI configuration**: Enter your token in the frontend Settings page (the top navigation bar gear icon), which persists it securely into `localStorage`.
-
----
-
-## 🚦 Installation & Setup
-
-### Automated Installation (Linux / macOS)
-
-We have created an automated installation script (`install.sh`) that ensures you have all prerequisites installed and configured properly. It handles:
-
-- Installing `podman` (via Homebrew on Mac or package managers on Linux).
-- Installing `podman-compose`.
-- Creating and configuring `podman machine` (if running on a Mac).
-- Setting up the required folders.
-
-To install using the automated script:
+### 1. Install OmniOps
 
 ```bash
-chmod +x install.sh
-./install.sh
+# Via install script (macOS / Linux)
+curl -sSL https://raw.githubusercontent.com/reizhafajrian/omniops/main/scripts/install.sh | bash
+
+# Via Homebrew (macOS)
+brew tap reizhafajrian/omniops && brew install omni
+
+# Verify
+omni --version
+# omni 0.1.0
 ```
 
-### Manual Setup (For Development)
+### 2. Install Podman (or Docker)
 
-#### 1. Start Rust Backend Engine
+Let OmniOps install the container engine for you:
 
 ```bash
-cd backend
-# Create an .env file mapping to your tokens and DB URLs
-cargo run -p api
+# Install Podman (recommended — rootless and daemonless)
+omni install --engine podman
+
+# Or install Docker
+omni install --engine docker
 ```
 
-_(Runs at `http://0.0.0.0:9090`)_
+### 3. Configure
 
-#### 2. Start React Control Plane
+Create a `.env` file in your working directory:
+
+```env
+PORT=9090
+GITOPS_TOKEN=your-secret-token-here
+DATABASE_URL=sqlite:./omniops.db
+RUST_LOG=info
+```
+
+### 4. Start the Server
 
 ```bash
-cd frontend
-npm install
-npm run dev
+# Background mode (SSH-safe, recommended for servers)
+omni start
+
+# Foreground mode (for development / debugging)
+omni serve
 ```
 
-_(Runs at `http://localhost:9091`)_
+Open **http://localhost:9090** in your browser. Log in with your `GITOPS_TOKEN`.
 
 ---
 
-## 📡 API Reference
+## 📖 CLI Reference
 
-All requests require `Authorization: Bearer <OMNIOPS_TOKEN>`.
+```
+Usage: omni [COMMAND]
+
+Commands:
+  serve      Start the server in the foreground (for debugging)
+  install    Install a container engine: podman, docker, or both
+  uninstall  Uninstall OmniOps (optionally with --deep-clean)
+  start      Start the server in the background (daemon mode)
+  stop       Stop the background server
+  status     Show daemon status (RUNNING / STOPPED)
+  help       Print help
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
+### Daemon Mode (SSH-Safe)
+
+When connected over SSH, use `omni start` so the server survives after you disconnect:
 
 ```bash
-# List all registered stacks
-curl -H "Authorization: Bearer <OMNIOPS_TOKEN>" \
-  http://localhost:9090/api/stacks
+omni start          # Start in background
+omni status         # OmniOps Status: RUNNING (PID: 12345)
+tail -f ~/.omniops.log  # View live logs
+omni stop           # Gracefully shut down
+```
 
-# Create a new stack to be tracked
-curl -X POST -H "Authorization: Bearer <OMNIOPS_TOKEN>" \
+### Installing the Container Engine
+
+```bash
+omni install --engine podman   # Podman (default)
+omni install --engine docker   # Docker
+omni install --engine both     # Both
+```
+
+### Uninstalling
+
+```bash
+# Remove OmniOps only (leaves Podman/Docker and all containers intact)
+omni uninstall
+
+# DESTRUCTIVE: Remove OmniOps AND wipe Podman + all container data
+omni uninstall --deep-clean
+
+# Deep clean a specific engine
+omni uninstall --deep-clean --engine docker
+```
+
+> ⚠️ `--deep-clean` permanently deletes all container images, volumes, machines, and config directories (`~/.config/containers`, `~/.local/share/containers`). This cannot be undone.
+
+---
+
+## 🏗️ Architecture
+
+OmniOps is a Rust **Cargo workspace** with three crates following Hexagonal Architecture:
+
+| Crate | Role |
+|---|---|
+| `domain` | Pure business logic — use cases, domain models, repository trait definitions. Zero I/O. |
+| `infrastructure` | Implements domain ports via SQLite (SQLx), Git (libgit2), and Podman/Docker CLI. |
+| `api` | Axum HTTP server, WebSocket handlers, CLI (Clap), and rust-embed for the React frontend. |
+
+### Reconciliation Loop
+
+```
+Git Repo (source of truth)
+     ↓  poll / webhook
+OmniOps Engine
+  - Diff latest SHA vs. last deployed SHA in SQLite
+  - If different: checkout → registry login → podman compose up -d --pull always
+  - Update last_deployed_sha and append sync record
+     ↓  WebSocket
+Web UI (localhost:9090)
+```
+
+### State Machine
+
+Every stack transitions through these states:
+
+```
+Unknown → OutOfSync → Deploying → Synced
+                              ↘ Failed (last_known_good_commit preserved)
+```
+
+---
+
+## 🔑 Authentication
+
+All API requests and the Web UI require a Bearer token:
+
+```
+Authorization: Bearer <GITOPS_TOKEN>
+```
+
+Set `GITOPS_TOKEN` in your `.env` file. This is the password for your OmniOps instance.
+
+---
+
+## 📡 API Quick Reference
+
+```bash
+BASE=http://localhost:9090/api
+TOKEN=your-secret-token
+
+# List all stacks
+curl -H "Authorization: Bearer $TOKEN" $BASE/stacks
+
+# Register a new stack
+curl -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"id":"my-app","repo_url":"https://github.com/user/repo.git","branch":"main","compose_path":"docker-compose.yml","poll_interval_secs":60}' \
-  http://localhost:9090/api/stacks
+  -d '{
+    "name": "my-app",
+    "repo_url": "https://github.com/you/repo.git",
+    "branch": "main",
+    "compose_file_path": "docker-compose.yml",
+    "sync_mode": "both",
+    "poll_interval_seconds": 60
+  }' $BASE/stacks
 
-# Get real-time system metrics, topology, and containers for a stack
-curl -H "Authorization: Bearer <OMNIOPS_TOKEN>" \
-  http://localhost:9090/api/stacks/my-app/services
+# Manually trigger sync
+curl -X POST -H "Authorization: Bearer $TOKEN" $BASE/stacks/{id}/sync
 
-# Delete stack & clean up containers
-curl -X DELETE -H "Authorization: Bearer <OMNIOPS_TOKEN>" \
-  http://localhost:9090/api/stacks/my-app
+# WebSocket: Stream live container logs
+wscat -c "ws://localhost:9090/api/logs/{stack_id}?container={container_name}" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Webhook trigger (no auth header needed — secret is in the URL)
+curl -X POST http://localhost:9090/api/webhooks/{SECRET_TOKEN}
 ```
+
+---
+
+## ⚙️ Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `9090` | HTTP server port |
+| `HOST` | `0.0.0.0` | Bind address |
+| `GITOPS_TOKEN` | *(required)* | API & UI authentication token |
+| `DATABASE_URL` | `sqlite:./omniops.db` | SQLite database path |
+| `RUST_LOG` | `info` | Log level: `error`, `warn`, `info`, `debug`, `trace` |
+
+---
+
+## 🛠️ Development Setup
+
+If you want to build from source:
+
+```bash
+# Prerequisites: Rust toolchain, Node.js 18+, Podman or Docker
+
+git clone https://github.com/reizhafajrian/omniops.git
+cd omniops/app
+
+# Build and install the CLI globally
+cargo install --path backend/crates/api
+
+# Run frontend in dev mode (hot-reload)
+cd frontend && npm install && npm run dev
+# → http://localhost:9091
+
+# Run backend in dev mode (foreground with logs)
+cd backend && cargo run -p api
+# → http://localhost:9090
+```
+
+### Building Release Binaries
+
+```bash
+# Build for current platform
+./scripts/build_release.sh
+
+# Cross-platform builds are handled via GitHub Actions on git tag push
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+---
+
+## 📦 Distribution
+
+When a tag is pushed to GitHub, the release workflow (`.github/workflows/release.yml`) automatically builds and publishes binaries for:
+
+| Platform | Binary |
+|---|---|
+| macOS (Apple Silicon) | `omni-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `omni-x86_64-apple-darwin.tar.gz` |
+| Linux (x86_64) | `omni-x86_64-unknown-linux-gnu.tar.gz` |
+| Windows (x86_64) | `omni-x86_64-pc-windows-msvc.zip` |
+
+---
+
+## 🗂️ Project Structure
+
+```
+app/
+├── backend/                    # Rust workspace
+│   ├── Cargo.toml              # Workspace definition
+│   └── crates/
+│       ├── api/                # Axum server + CLI (bin: omni)
+│       │   └── src/
+│       │       ├── main.rs
+│       │       ├── cli.rs      # omni install/uninstall/start/stop/status
+│       │       ├── handlers/   # REST + WebSocket route handlers
+│       │       └── middleware/ # Auth, CORS
+│       ├── domain/             # Business logic (no I/O)
+│       └── infrastructure/     # SQLite, Git, Podman adapters
+├── frontend/                   # React + Vite + TypeScript + Tailwind
+│   └── src/
+│       ├── pages/              # Dashboard, StackDetail, Settings, etc.
+│       ├── components/         # UI components
+│       └── hooks/              # useLogSocket, useSystemMetrics, etc.
+├── scripts/
+│   ├── install.sh              # User-facing install script
+│   └── build_release.sh        # Local release build helper
+└── .github/workflows/
+    └── release.yml             # Cross-platform CI/CD build
+```
+
+---
+
+## 📄 License
+
+MIT © [Reizha Fajrian](https://github.com/reizhafajrian)

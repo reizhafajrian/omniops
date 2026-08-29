@@ -17,7 +17,7 @@ npm run build
 echo "Building backend..."
 cd "$PROJECT_ROOT/backend"
 # Build for current architecture
-cargo build --release --bin omniops
+cargo build --release --bin omni
 
 echo "Build complete! Binary located at:"
-echo "$PROJECT_ROOT/backend/target/release/omniops"
+echo "$PROJECT_ROOT/backend/target/release/omni"

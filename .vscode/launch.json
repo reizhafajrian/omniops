@@ -13,7 +13,7 @@
       "name": "Debug Rust Backend (CodeLLDB - recommended)",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/backend/target/debug/omniops",
+      "program": "${workspaceFolder}/backend/target/debug/omni",
       "args": [],
       "cwd": "${workspaceFolder}/backend",
       "env": {
@@ -30,7 +30,7 @@
       "name": "Debug Rust Backend (C/C++ cppdbg)",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/backend/target/debug/omniops",
+      "program": "${workspaceFolder}/backend/target/debug/omni",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/backend",
