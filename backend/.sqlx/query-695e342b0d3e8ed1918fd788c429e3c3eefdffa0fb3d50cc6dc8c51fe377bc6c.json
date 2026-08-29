@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT token FROM sessions WHERE token = ? AND expires_at > CURRENT_TIMESTAMP",
+  "describe": {
+    "columns": [
+      {
+        "name": "token",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "695e342b0d3e8ed1918fd788c429e3c3eefdffa0fb3d50cc6dc8c51fe377bc6c"
+}
