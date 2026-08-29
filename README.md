@@ -6,9 +6,7 @@
 
 **OmniOps** is a lightweight, self-hosted GitOps continuous deployment engine built in Rust. It monitors your Git repositories for new commits and automatically deploys your `docker-compose.yml` workloads via **Podman** (or Docker) — no Kubernetes required.
 
-> **Docs:** [https://omniops.dev/docs](https://omniops.dev/docs)
-
----
+> **Docs:** [https://](https://omniops.dev/docs)[reizhafajrian.github.io/omniops-docs](https://reizhafajrian.github.io/omniops-docs/)
 
 ## ✨ Key Features
 
@@ -125,11 +123,11 @@ omni uninstall --deep-clean --engine docker
 
 OmniOps is a Rust **Cargo workspace** with three crates following Hexagonal Architecture:
 
-| Crate | Role |
-|---|---|
-| `domain` | Pure business logic — use cases, domain models, repository trait definitions. Zero I/O. |
-| `infrastructure` | Implements domain ports via SQLite (SQLx), Git (libgit2), and Podman/Docker CLI. |
-| `api` | Axum HTTP server, WebSocket handlers, CLI (Clap), and rust-embed for the React frontend. |
+| Crate            | Role                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| `domain`         | Pure business logic — use cases, domain models, repository trait definitions. Zero I/O.  |
+| `infrastructure` | Implements domain ports via SQLite (SQLx), Git (libgit2), and Podman/Docker CLI.         |
+| `api`            | Axum HTTP server, WebSocket handlers, CLI (Clap), and rust-embed for the React frontend. |
 
 ### Reconciliation Loop
 
@@ -164,6 +162,7 @@ Authorization: Bearer <SESSION_UUID>
 ```
 
 Authentication is now managed by the internal SQLite database. You can create users using the CLI:
+
 ```bash
 omni users create admin <password>
 ```
@@ -206,12 +205,12 @@ curl -X POST http://localhost:8080/api/webhooks/{SECRET_TOKEN}
 
 ## ⚙️ Environment Variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `8080` | Server listening port |
-| `HOST` | `0.0.0.0` | Bind address |
-| `DATABASE_URL` | `sqlite:./omniops.db` | Path to SQLite DB |
-| `RUST_LOG` | `info` | Log level: `error`, `warn`, `info`, `debug`, `trace` |
+| Variable       | Default               | Description                                         |
+| -------------- | --------------------- | --------------------------------------------------- |
+| `PORT`         | `8080`                | Server listening port                               |
+| `HOST`         | `0.0.0.0`             | Bind address                                        |
+| `DATABASE_URL` | `sqlite:./omniops.db` | Path to SQLite DB                                   |
+| `RUST_LOG`     | `info`                | Log level:`error`, `warn`, `info`, `debug`, `trace` |
 
 ---
 
@@ -253,12 +252,12 @@ git tag v0.1.0 && git push origin v0.1.0
 
 When a tag is pushed to GitHub, the release workflow (`.github/workflows/release.yml`) automatically builds and publishes binaries for:
 
-| Platform | Binary |
-|---|---|
-| macOS (Apple Silicon) | `omni-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `omni-x86_64-apple-darwin.tar.gz` |
-| Linux (x86_64) | `omni-x86_64-unknown-linux-gnu.tar.gz` |
-| Windows (x86_64) | `omni-x86_64-pc-windows-msvc.zip` |
+| Platform              | Binary                                 |
+| --------------------- | -------------------------------------- |
+| macOS (Apple Silicon) | `omni-aarch64-apple-darwin.tar.gz`     |
+| macOS (Intel)         | `omni-x86_64-apple-darwin.tar.gz`      |
+| Linux (x86_64)        | `omni-x86_64-unknown-linux-gnu.tar.gz` |
+| Windows (x86_64)      | `omni-x86_64-pc-windows-msvc.zip`      |
 
 ---
 
@@ -298,6 +297,7 @@ app/
 This software is provided for personal, educational, and **internal business use**. You and your company may use this software internally to deploy and manage your own applications.
 
 However, you **may not** use this software to:
+
 - Sell the software or offer it as part of a commercial product.
 - Offer the software as a paid SaaS (Software-as-a-Service), managed service, or subscription to third parties.
 - Resell or distribute the software for direct profit.
